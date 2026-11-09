@@ -1,0 +1,30 @@
+{
+  "schema_version": "1.0.0",
+  "session_id": "demo-session-001",
+  "board": "LPC1768",
+  "peripherals": [
+    "GPIO",
+    "NVIC_EXTERNAL_INTERRUPT"
+  ],
+  "gpio": {
+    "schema_version": "1.0.0",
+    "session_id": "demo-session-001",
+    "pins": [
+      {
+        "port": 0,
+        "pin": 0,
+        "direction": "output",
+        "level": 1,
+        "updated_at": "2026-11-10T12:00:02Z"
+      },
+      {
+        "port": 2,
+        "pin": 10,
+        "direction": "input",
+        "level": 0,
+        "updated_at": "2026-11-10T12:00:02Z"
+      }
+    ]
+  },
+  "updated_at": "2026-11-10T12:00:02Z"
+}
