@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://lpc1768-simulator.local/protocol/schemas/firmware.schema.json",
+  "title": "Firmware image metadata",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "filename": {
+      "type": "string",
+      "minLength": 1
+    },
+    "format": {
+      "enum": [
+        "elf"
+      ]
+    },
+    "architecture": {
+      "const": "ARMv7-M"
+    },
+    "entry_point": {
+      "type": "string",
+      "pattern": "^0x[0-9A-Fa-f]{1,8}$"
+    },
+    "load_status": {
+      "enum": [
+        "not_loaded",
+        "loaded",
+        "rejected"
+      ]
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  },
+  "required": [
+    "filename",
+    "format",
+    "architecture",
+    "load_status"
+  ]
+}

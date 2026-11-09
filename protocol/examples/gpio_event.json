@@ -1,0 +1,14 @@
+{
+  "schema_version": "1.0.0",
+  "type": "GPIO_CHANGED",
+  "event_id": "evt-000001",
+  "session_id": "demo-session-001",
+  "timestamp": "2026-11-10T12:00:03Z",
+  "payload": {
+    "port": 0,
+    "pin": 0,
+    "direction": "output",
+    "level": 1,
+    "source": "mock"
+  }
+}

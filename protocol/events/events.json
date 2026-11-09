@@ -1,0 +1,74 @@
+{
+  "schema_version": "1.0.0",
+  "websocket": {
+    "path": "/api/v1/sessions/{session_id}/events",
+    "envelope_schema": "../schemas/event.schema.json"
+  },
+  "events": [
+    {
+      "type": "SESSION_STATE_CHANGED",
+      "payload": [
+        "status"
+      ],
+      "mvp": true
+    },
+    {
+      "type": "FIRMWARE_LOADED",
+      "payload": [
+        "firmware"
+      ],
+      "mvp": true
+    },
+    {
+      "type": "CPU_STATE_UPDATED",
+      "payload": [
+        "cpu_state"
+      ],
+      "mvp": true
+    },
+    {
+      "type": "GPIO_CHANGED",
+      "payload": [
+        "port",
+        "pin",
+        "direction",
+        "level",
+        "source"
+      ],
+      "mvp": true
+    },
+    {
+      "type": "LOG",
+      "payload": [
+        "level",
+        "message",
+        "component"
+      ],
+      "mvp": true
+    },
+    {
+      "type": "ERROR",
+      "payload": [
+        "code",
+        "message",
+        "recoverable",
+        "details"
+      ],
+      "mvp": true
+    },
+    {
+      "type": "SIMULATION_STOPPED",
+      "payload": [
+        "reason"
+      ],
+      "mvp": true
+    }
+  ],
+  "rules": [
+    "The envelope fields are mandatory for every event.",
+    "event_id is unique per emitted event; timestamp is RFC 3339 date-time.",
+    "Unknown event types must be ignored safely by clients while preserving logs where possible.",
+    "Events are notifications, not commands; clients must not infer unreported register values.",
+    "GPIO source is one of engine, backend, user, or mock."
+  ]
+}
