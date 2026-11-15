@@ -1,16 +1,16 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://lpc1768-simulator.local/protocol/schemas/message-envelope.schema.json",
-  "title": "LPC1768 Simulator Message Envelope",
+  "$id": "https://lpc1768-simulator.local/protocol/schemas/event.schema.json",
+  "title": "LPC1768 Simulator WebSocket event envelope",
   "type": "object",
-  "required": ["protocol_version", "type", "message_id", "timestamp", "payload"],
+  "additionalProperties": false,
   "properties": {
-    "protocol_version": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$" },
-    "type": { "type": "string", "minLength": 3 },
-    "message_id": { "type": "string", "minLength": 1 },
+    "schema_version": { "const": "1.0.0" },
+    "type": { "type": "string", "minLength": 1 },
+    "event_id": { "type": "string", "minLength": 1 },
+    "session_id": { "type": "string", "minLength": 1 },
     "timestamp": { "type": "string", "format": "date-time" },
-    "session_id": { "type": ["string", "null"] },
     "payload": { "type": "object" }
   },
-  "additionalProperties": false
+  "required": ["schema_version", "type", "event_id", "session_id", "timestamp", "payload"]
 }
