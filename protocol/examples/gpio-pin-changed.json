@@ -1,14 +1,14 @@
 {
-  "protocol_version": "1.0.0",
-  "type": "gpio.pin_changed",
-  "message_id": "mock-gpio-0001",
+  "schema_version": "1.0.0",
+  "type": "GPIO_CHANGED",
+  "event_id": "evt-mock-0001",
+  "session_id": "demo-session-001",
   "timestamp": "2026-11-15T20:00:00Z",
-  "session_id": "mock-session-001",
   "payload": {
     "port": 0,
     "pin": 0,
-    "level": 1,
     "direction": "output",
-    "function": "gpio"
+    "level": 1,
+    "source": "mock"
   }
 }
