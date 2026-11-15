@@ -13,10 +13,10 @@ Never work directly on `main` or `develop`. All PRs target `develop`, except rel
 
 ## 2. Keep module boundaries clear
 
-- `protocol/` is the contract source of truth, not a duplicate of implementation code.
+- `protocol/` on develop is the single source of truth for REST commands and WebSocket events.
 - `apps/desktop_backend/` owns HTTP/WebSocket transport and session orchestration.
 - `apps/desktop_backend/app/engine/` owns the backend-facing EngineAdapter interface.
-- `engine/qemu/` stores patch series, scripts, version pin, and build notes; do not vendor the entire QEMU source tree.
+- `engine/qemu/` stores patch series, version pin, scripts, and build notes; do not vendor the entire QEMU source tree.
 - `engine/lpc1768/` stores project-owned hardware specifications, mappings, and tests. QEMU implementation patches remain under `engine/qemu/patches/`.
 - `apps/flutter_app/` owns UI state and presentation. It must not implement hardware register semantics.
 - `apps/flutter_app/lib/board_view/` renders board state from protocol events and mapping data; it must not invent GPIO state.
@@ -24,39 +24,43 @@ Never work directly on `main` or `develop`. All PRs target `develop`, except rel
 
 ## 3. Contract-first change procedure
 
-For every REST route, command, or WebSocket event:
-1. M6 proposes/updates the schema and example under `protocol/`.
-2. Affected owners review the change before implementation.
-3. M7 adds schema/contract validation.
-4. M3 implements backend behavior; M4/M5 consume the published contract.
-5. If a change is breaking, increment protocol major version and document migration. Additive optional fields may be minor changes. Bug fixes/documentation are patch changes.
-6. Never silently rename fields, change units, or change event meaning.
+Before implementing an API, command, or event, read:
+- `protocol/README.md`
+- `protocol/commands/commands.json`
+- `protocol/events/events.json`
+- relevant schema and canonical examples under `protocol/schemas/` and `protocol/examples/`
 
-Every message should carry:
-- `protocol_version`
+The existing WebSocket envelope is authoritative:
+- `schema_version`
 - `type`
-- `message_id`
-- `timestamp` (UTC ISO-8601)
-- `session_id` when session-scoped
+- `event_id`
+- `session_id`
+- `timestamp`
 - `payload`
 
-Use event names in the form `domain.resource_action`, e.g. `gpio.pin_changed`.
+Use the exact event names in `protocol/events/events.json`, including `GPIO_CHANGED`. Do not introduce a second envelope or rename fields. Every event must validate against `protocol/schemas/event.schema.json`.
+
+For every contract change:
+1. M6 proposes/updates the schema and example.
+2. Affected owners review before implementation.
+3. M7 adds schema/contract validation.
+4. M3 implements backend behavior; M4/M5 consume the published contract.
+5. Breaking changes require an explicit version/migration decision.
+6. Never silently change field names, units, or event meaning.
 
 ## 4. Pull request rules
 
 - One PR should represent one coherent module/task.
 - Keep PRs small enough to review; avoid mixing formatting, refactors, and features.
-- PR description must state scope, paths, contract version, tests, screenshots/logs where useful, limitations, and downstream impact.
+- PR description states scope, paths, contract version, tests, limitations, and downstream impact.
 - At least one reviewer other than the author approves.
 - Shared contracts require M6 plus every affected module owner.
 - QEMU patch changes require M1 review; hardware behavior changes require M2 review.
 - Do not merge on CI failure.
-- Prefer squash merge for feature PRs to keep history readable.
+- Prefer squash merge for feature PRs.
 - Delete merged feature branches.
 
 ## 5. Handoff record template
-
-Copy this into the PR description or issue:
 
 ```markdown
 ## Handoff
@@ -68,14 +72,14 @@ Copy this into the PR description or issue:
 - Files and public interfaces changed:
 - Clean checkout setup:
 - Run command:
-- Test command and result:
+- Test command and actual result:
 - Example fixture / event:
 - Known limitations:
 - Follow-up issue(s):
 - Ready for integration: yes/no
 ```
 
-## 6. Local setup and commands
+## 6. Local workflow
 
 From repository root:
 
@@ -94,40 +98,30 @@ git diff --check
 
 Run the checks documented by the touched module. Do not claim a test passed unless it was actually run.
 
-After merge:
+## 7. QEMU delivery
 
-```bash
-git switch develop
-git pull --ff-only origin develop
-git branch -d feature/M3-session-api
-```
-
-## 7. QEMU delivery specifically
-
-Do not commit the full QEMU checkout or build directory.
-Deliver:
+Do not commit the full QEMU checkout or build directory. Deliver:
 - exact upstream QEMU version/tag and source commit,
 - ordered patch files,
 - patch manifest with SHA256 checksums,
 - apply script that fails on a mismatched source tree,
 - configure/build/run commands,
-- smoke-test firmware or QEMU monitor command sequence,
+- smoke-test firmware or QEMU monitor sequence,
 - known limitations.
 
-The receiving member should be able to reproduce the patch on a clean checkout.
+The receiving member should reproduce the patch on a clean checkout.
 
 ## 8. Binary and board asset policy
 
 - Commit source assets and optimized runtime assets only.
-- Large editable 3D source files should use Git LFS if they are genuinely required in the repository and the team has LFS access; otherwise use a documented shared artifact location and record immutable version/hash.
+- Large editable 3D source files should use Git LFS if required and supported; otherwise use a documented shared artifact location with immutable version/hash.
 - Never commit temporary renders, caches, exports, or generated build folders.
-- Include a small preview image and a license/source note for third-party assets.
+- Include preview image and third-party asset license/source note.
 
 ## 9. Offline-friendly collaboration
 
-Because connectivity to GitHub may be unreliable:
-- Keep Git as the source of truth; configure a second remote only after verifying its URL and access.
+- Keep Git as source of truth; configure a second remote only after verifying its URL and access.
 - Push the same branch name and commit SHA to both remotes.
-- Do not independently develop divergent histories on two remotes.
-- Use signed release tags or recorded commit SHAs to identify the canonical handoff.
-- Keep schema/examples and setup docs in the repository so work can continue offline after clone.
+- Do not develop divergent histories independently.
+- Record canonical commit SHAs for handoffs.
+- Keep schemas, examples, and setup docs in Git for offline use.
