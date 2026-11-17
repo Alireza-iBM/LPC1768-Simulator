@@ -1,0 +1,81 @@
+{
+  "schema_version": "1.0.0",
+  "transport": {
+    "http": "REST for request/response operations",
+    "websocket": "Server-to-client event stream",
+    "internal": "Backend-to-engine adapter; implementation is not part of this public JSON contract"
+  },
+  "commands": [
+    {
+      "name": "CREATE_SESSION",
+      "http": "POST /api/v1/sessions",
+      "input": "target",
+      "output": "session",
+      "mvp": true
+    },
+    {
+      "name": "LOAD_FIRMWARE",
+      "http": "POST /api/v1/sessions/{session_id}/firmware",
+      "input": "ELF upload",
+      "output": "firmware metadata",
+      "mvp": true
+    },
+    {
+      "name": "START",
+      "http": "POST /api/v1/sessions/{session_id}/start",
+      "input": "empty",
+      "output": "session status",
+      "mvp": true
+    },
+    {
+      "name": "PAUSE",
+      "http": "POST /api/v1/sessions/{session_id}/pause",
+      "input": "empty",
+      "output": "session status",
+      "mvp": true
+    },
+    {
+      "name": "RESET",
+      "http": "POST /api/v1/sessions/{session_id}/reset",
+      "input": "empty",
+      "output": "session status",
+      "mvp": true
+    },
+    {
+      "name": "GET_STATE",
+      "http": "GET /api/v1/sessions/{session_id}/state",
+      "input": "empty",
+      "output": "CPU and hardware state",
+      "mvp": true
+    },
+    {
+      "name": "SET_GPIO_INPUT",
+      "http": "PUT /api/v1/sessions/{session_id}/gpio/{port}/{pin}",
+      "input": "level: 0|1",
+      "output": "GPIO state",
+      "mvp": true
+    },
+    {
+      "name": "DELETE_SESSION",
+      "http": "DELETE /api/v1/sessions/{session_id}",
+      "input": "empty",
+      "output": "204",
+      "mvp": true
+    },
+    {
+      "name": "STEP",
+      "http": null,
+      "input": "not defined",
+      "output": "not defined",
+      "mvp": false,
+      "note": "Do not implement until the selected engine interface proves reliable single-step support."
+    }
+  ],
+  "rules": [
+    "All API paths are rooted at /api/v1.",
+    "JSON request and response bodies use application/json unless the endpoint uploads a firmware file.",
+    "A successful command response reports the observed result; never report success before the engine confirms it.",
+    "Unsupported operations return a structured error rather than a simulated success.",
+    "Absolute host filesystem paths must not be exposed to the Flutter client."
+  ]
+}

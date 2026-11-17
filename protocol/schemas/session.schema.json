@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://lpc1768-simulator.local/protocol/schemas/session.schema.json",
+  "title": "Simulation session",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "1.0.0"
+    },
+    "session_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "status": {
+      "enum": [
+        "created",
+        "ready",
+        "running",
+        "paused",
+        "stopped",
+        "error"
+      ]
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "updated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "firmware": {
+      "$ref": "firmware.schema.json"
+    },
+    "target": {
+      "const": "LPC1768"
+    }
+  },
+  "required": [
+    "schema_version",
+    "session_id",
+    "status",
+    "created_at",
+    "updated_at",
+    "target"
+  ]
+}

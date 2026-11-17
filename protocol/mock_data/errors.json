@@ -1,0 +1,30 @@
+{
+  "schema_version": "1.0.0",
+  "errors": [
+    {
+      "code": "SESSION_NOT_FOUND",
+      "message": "The requested simulation session does not exist.",
+      "recoverable": false
+    },
+    {
+      "code": "FIRMWARE_INVALID",
+      "message": "The firmware is not a supported ARM ELF image.",
+      "recoverable": true
+    },
+    {
+      "code": "ENGINE_UNAVAILABLE",
+      "message": "The simulation engine is unavailable.",
+      "recoverable": true
+    },
+    {
+      "code": "UNSUPPORTED_OPERATION",
+      "message": "The requested operation is not supported by this engine build.",
+      "recoverable": false
+    },
+    {
+      "code": "ENGINE_TIMEOUT",
+      "message": "The engine did not respond before the timeout.",
+      "recoverable": true
+    }
+  ]
+}

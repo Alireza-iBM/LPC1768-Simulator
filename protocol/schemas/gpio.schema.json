@@ -1,0 +1,69 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://lpc1768-simulator.local/protocol/schemas/gpio.schema.json",
+  "title": "GPIO pin state",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "1.0.0"
+    },
+    "session_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "pins": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "port": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 4
+          },
+          "pin": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 31
+          },
+          "direction": {
+            "enum": [
+              "input",
+              "output",
+              "unknown"
+            ]
+          },
+          "level": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "enum": [
+              0,
+              1,
+              null
+            ]
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "port",
+          "pin",
+          "direction",
+          "level",
+          "updated_at"
+        ]
+      }
+    }
+  },
+  "required": [
+    "schema_version",
+    "session_id",
+    "pins"
+  ]
+}
