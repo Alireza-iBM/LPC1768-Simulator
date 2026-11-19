@@ -1,5 +1,6 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse
+from fastapi.exceptions import RequestValidationError
 
 from app.api.sessions import router as sessions_router
 from app.api.simulation import router as simulation_router
@@ -17,6 +18,46 @@ app = FastAPI(
 app.state.backend_available = True
 
 
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request, exc):
+    detail = exc.detail
+
+    if isinstance(detail, dict):
+        error = detail
+    else:
+        error = {
+            "code": {
+                404: "NOT_FOUND",
+                400: "BAD_REQUEST",
+                409: "CONFLICT",
+                503: "SERVICE_UNAVAILABLE"
+            }.get(exc.status_code, "HTTP_ERROR"),
+            "message": str(detail),
+            "recoverable": exc.status_code >= 500,
+            "details": {}
+        }
+
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"error": error}
+    )
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request, exc):
+    return JSONResponse(
+        status_code=422,
+        content={
+            "error": {
+                "code": "VALIDATION_ERROR",
+                "message": "The request data is invalid.",
+                "recoverable": False,
+                "details": {}
+            }
+        }
+    )
+
+
 @app.middleware("http")
 async def backend_availability_middleware(request, call_next):
 
@@ -29,9 +70,12 @@ async def backend_availability_middleware(request, call_next):
         return JSONResponse(
             status_code=503,
             content={
-                "success": False,
-                "error": "BACKEND_UNAVAILABLE",
-                "message": "Backend is temporarily unavailable"
+                "error": {
+                    "code": "BACKEND_UNAVAILABLE",
+                    "message": "Backend is temporarily unavailable.",
+                    "recoverable": True,
+                    "details": {}
+                }
             }
         )
 

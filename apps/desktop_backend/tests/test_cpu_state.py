@@ -27,7 +27,7 @@ def test_cpu_state_matches_protocol_structure():
 
 def test_cpu_state_changes_when_engine_starts():
     engine = FakeEngineAdapter()
-    engine.loaded_firmware = "sample_firmware.bin"
+    engine.loaded_firmware = "sample_firmware.elf"
 
     engine.start()
 
@@ -39,7 +39,7 @@ def test_cpu_state_changes_when_engine_starts():
 
 def test_cpu_state_is_halted_when_paused():
     engine = FakeEngineAdapter()
-    engine.loaded_firmware = "sample_firmware.bin"
+    engine.loaded_firmware = "sample_firmware.elf"
 
     engine.start()
     engine.pause()

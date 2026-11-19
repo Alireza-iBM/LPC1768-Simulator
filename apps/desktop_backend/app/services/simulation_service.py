@@ -1,4 +1,5 @@
 import re
+from pathlib import Path
 from app.adapters.fake_engine_adapter import FakeEngineAdapter
 from app.adapters.fake_hardware_adapter import FakeHardwareAdapter
 from app.services.event_manager import EventManager
@@ -45,8 +46,40 @@ class SimulationService:
     def get_session(self, session_id):
         return self.session_manager.get_session(session_id)
 
+    def get_protocol_session(self, session_id):
+        session = self.session_manager.get_session(session_id)
+        return self.session_manager.to_protocol_session(session)
+
+    def _update_session_status(self, session_id, status):
+        session = self.session_manager.get_session(session_id)
+
+        if session is None:
+            return False
+
+        if session["status"] == status:
+            return True
+
+        updated = self.session_manager.update_status(session_id, status)
+
+        if not updated:
+            return False
+
+        runtime = self.get_runtime(session_id)
+
+        if runtime is not None:
+            runtime["event_manager"].emit(
+                "SESSION_STATE_CHANGED",
+                session_id=session_id,
+                payload={"status": status}
+            )
+
+        return True
+
     def list_sessions(self):
         return self.session_manager.list_sessions()
+
+    def list_protocol_sessions(self):
+        return self.session_manager.list_protocol_sessions()
 
     def delete_session(self, session_id):
         if self.session_manager.get_session(session_id) is None:
@@ -169,7 +202,7 @@ class SimulationService:
 
         return normalized
 
-    async def load_firmware(self, session_id, firmware_path):
+    async def load_firmware(self, session_id, firmware_path, filename=None):
         runtime = self.get_runtime(session_id)
 
         if runtime is None:
@@ -181,7 +214,26 @@ class SimulationService:
         result = runtime["engine"].load_firmware(firmware_path)
 
         if result.get("success"):
-            self.session_manager.update_status(session_id, "ready")
+            self._update_session_status(session_id, "ready")
+
+            firmware_info = {
+                "filename": filename or Path(firmware_path).name,
+                "format": "elf",
+                "architecture": "ARMv7-M",
+                "load_status": "loaded"
+            }
+            self.session_manager.update_firmware(
+                session_id,
+                firmware_info
+            )
+
+            runtime["event_manager"].emit(
+                "FIRMWARE_LOADED",
+                session_id=session_id,
+                payload={
+                    "firmware": firmware_info
+                }
+            )
 
         await self._sync_events(session_id)
 
@@ -216,7 +268,7 @@ class SimulationService:
         new_status = (
             "running" if engine_result.get("success") else "error"
         )
-        self.session_manager.update_status(session_id, new_status)
+        self._update_session_status(session_id, new_status)
 
         await self._sync_events(session_id)
 
@@ -237,7 +289,7 @@ class SimulationService:
         result = runtime["engine"].pause()
 
         if result.get("success"):
-            self.session_manager.update_status(session_id, "paused")
+            self._update_session_status(session_id, "paused")
 
         await self._sync_events(session_id)
 
@@ -255,7 +307,7 @@ class SimulationService:
         result = runtime["engine"].resume()
 
         if result.get("success"):
-            self.session_manager.update_status(session_id, "running")
+            self._update_session_status(session_id, "running")
 
         await self._sync_events(session_id)
 
@@ -278,7 +330,7 @@ class SimulationService:
                 if runtime["engine"].loaded_firmware
                 else "created"
             )
-            self.session_manager.update_status(session_id, new_status)
+            self._update_session_status(session_id, new_status)
 
         await self._sync_events(session_id)
 
@@ -296,7 +348,7 @@ class SimulationService:
         engine_result = runtime["engine"].stop()
 
         if engine_result.get("success"):
-            self.session_manager.update_status(session_id, "stopped")
+            self._update_session_status(session_id, "stopped")
 
         await self._sync_events(session_id)
 

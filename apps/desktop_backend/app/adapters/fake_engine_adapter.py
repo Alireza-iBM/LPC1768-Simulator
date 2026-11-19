@@ -56,7 +56,7 @@ class FakeEngineAdapter(EngineInterface):
         if not expected_format.startswith("."):
             expected_format = "." + expected_format
 
-        valid_formats = {expected_format, ".bin"}
+        valid_formats = {expected_format}
 
         if path.suffix.lower() not in valid_formats:
             return {
@@ -69,7 +69,7 @@ class FakeEngineAdapter(EngineInterface):
         return {
             "success": True,
             "message": "Firmware loaded successfully",
-            "firmware": self.loaded_firmware
+            "firmware": Path(self.loaded_firmware).name
         }
 
     def start(self):

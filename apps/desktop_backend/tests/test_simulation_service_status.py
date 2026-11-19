@@ -12,7 +12,7 @@ def test_session_status_lifecycle():
     assert service.get_session(session_id)["status"] == "created"
 
     firmware_result = asyncio.run(
-        service.load_firmware(session_id, "sample_firmware.bin")
+        service.load_firmware(session_id, "sample_firmware.elf")
     )
     
     assert firmware_result["success"] is True
@@ -54,7 +54,7 @@ def test_resume_simulation_updates_status():
     session = service.create_session()
     session_id = session["session_id"]
 
-    asyncio.run(service.load_firmware(session_id, "sample_firmware.bin"))
+    asyncio.run(service.load_firmware(session_id, "sample_firmware.elf"))
     asyncio.run(service.start_simulation(session_id))
     asyncio.run(service.pause_simulation(session_id))
 
@@ -69,7 +69,7 @@ def test_reset_simulation_updates_status():
     session = service.create_session()
     session_id = session["session_id"]
 
-    asyncio.run(service.load_firmware(session_id, "sample_firmware.bin"))
+    asyncio.run(service.load_firmware(session_id, "sample_firmware.elf"))
     asyncio.run(service.start_simulation(session_id))
 
     result = asyncio.run(service.reset_simulation(session_id))
@@ -83,7 +83,7 @@ def test_stop_simulation_updates_status():
     session = service.create_session()
     session_id = session["session_id"]
 
-    asyncio.run(service.load_firmware(session_id, "sample_firmware.bin"))
+    asyncio.run(service.load_firmware(session_id, "sample_firmware.elf"))
     asyncio.run(service.start_simulation(session_id))
 
     result = asyncio.run(service.stop_simulation(session_id))

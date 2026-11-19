@@ -1,4 +1,4 @@
-﻿import pytest
+import pytest
 
 from app.sessions.session_manager import SessionManager
 
