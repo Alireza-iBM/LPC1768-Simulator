@@ -25,6 +25,29 @@ class SessionManager:
     def get_session(self, session_id):
         return self.sessions.get(session_id)
 
+    def update_status(self, session_id, status):
+        valid_statuses = {
+            "created",
+            "ready",
+            "running",
+            "paused",
+            "stopped",
+            "error"
+        }
+
+        if status not in valid_statuses:
+            raise ValueError(f"Invalid session status: {status}")
+
+        session = self.get_session(session_id)
+
+        if session is None:
+            return False
+
+        session["status"] = status
+        session["updated_at"] = datetime.now(timezone.utc).isoformat()
+
+        return True
+
     def list_sessions(self):
         return list(self.sessions.values())
 

@@ -48,11 +48,16 @@ class FakeEngineAdapter(EngineInterface):
                 "message": "Invalid firmware"
             }
 
-        if (
-            path.suffix.lower() !=
-            SAMPLE_FIRMWARE["format"].lower().replace(".", "")
-            and path.suffix.lower() != ".bin"
-        ):
+        expected_format = str(
+            SAMPLE_FIRMWARE["format"]
+        ).lower()
+
+        if not expected_format.startswith("."):
+            expected_format = "." + expected_format
+
+        valid_formats = {expected_format, ".bin"}
+
+        if path.suffix.lower() not in valid_formats:
             return {
                 "success": False,
                 "message": "Invalid firmware format"

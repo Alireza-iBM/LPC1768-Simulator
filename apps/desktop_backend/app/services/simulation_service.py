@@ -96,6 +96,9 @@ class SimulationService:
 
         result = runtime["engine"].load_firmware(firmware_path)
 
+        if result.get("success"):
+            self.session_manager.update_status(session_id, "ready")
+
         await self._sync_events(session_id)
 
         return result
@@ -126,6 +129,11 @@ class SimulationService:
 
         engine_result = runtime["engine"].start()
 
+        new_status = (
+            "running" if engine_result.get("success") else "error"
+        )
+        self.session_manager.update_status(session_id, new_status)
+
         await self._sync_events(session_id)
 
         return {
@@ -144,6 +152,9 @@ class SimulationService:
 
         result = runtime["engine"].pause()
 
+        if result.get("success"):
+            self.session_manager.update_status(session_id, "paused")
+
         await self._sync_events(session_id)
 
         return result
@@ -158,6 +169,9 @@ class SimulationService:
             }
 
         result = runtime["engine"].resume()
+
+        if result.get("success"):
+            self.session_manager.update_status(session_id, "running")
 
         await self._sync_events(session_id)
 
@@ -174,6 +188,14 @@ class SimulationService:
 
         result = runtime["engine"].reset()
 
+        if result.get("success"):
+            new_status = (
+                "ready"
+                if runtime["engine"].loaded_firmware
+                else "created"
+            )
+            self.session_manager.update_status(session_id, new_status)
+
         await self._sync_events(session_id)
 
         return result
@@ -188,6 +210,9 @@ class SimulationService:
             }
 
         engine_result = runtime["engine"].stop()
+
+        if engine_result.get("success"):
+            self.session_manager.update_status(session_id, "stopped")
 
         await self._sync_events(session_id)
 
