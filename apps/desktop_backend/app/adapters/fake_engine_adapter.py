@@ -1,5 +1,6 @@
 import re
 from pathlib import Path
+from datetime import datetime, timezone
 
 from app.engine.engine_interface import EngineInterface
 from app.services.event_manager import EventManager
@@ -188,12 +189,30 @@ class FakeEngineAdapter(EngineInterface):
         }
 
     def get_cpu_state(self):
+        register_names = [
+            "r0", "r1", "r2", "r3", "r4", "r5",
+            "r6", "r7", "r8", "r9", "r10", "r11",
+            "r12", "sp", "lr", "pc", "xpsr"
+        ]
+
+        registers = {}
+
+        for name in register_names:
+            value = MOCK_CPU_STATE.get(name.upper())
+
+            if value is None:
+                registers[name] = None
+            elif isinstance(value, str):
+                registers[name] = int(value, 16)
+            else:
+                registers[name] = value
 
         return {
-            "running": self.running,
-            "paused": self.paused,
-            "firmware": self.loaded_firmware,
-            "registers": MOCK_CPU_STATE.copy()
+            "available": True,
+            "source": "mock",
+            "halted": not self.running or self.paused,
+            "updated_at": datetime.now(timezone.utc).isoformat(),
+            "registers": registers
         }
 
     def get_hardware_state(self):

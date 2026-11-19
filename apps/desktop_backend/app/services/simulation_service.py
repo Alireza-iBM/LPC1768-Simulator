@@ -1,3 +1,4 @@
+import re
 from app.adapters.fake_engine_adapter import FakeEngineAdapter
 from app.adapters.fake_hardware_adapter import FakeHardwareAdapter
 from app.services.event_manager import EventManager
@@ -77,13 +78,96 @@ class SimulationService:
         events = event_manager.get_events()
 
         for event in events:
-            event["session_id"] = session_id
+            normalized = self._normalize_event(event, session_id)
 
-            self.session_manager.add_event(session_id, event)
+            if normalized is None:
+                continue
 
-            await websocket_manager.broadcast(session_id, event)
+            self.session_manager.add_event(session_id, normalized)
+
+            await websocket_manager.broadcast(
+                session_id,
+                normalized
+            )
 
         event_manager.clear_events()
+
+    def _normalize_event(self, event, session_id):
+        event_type = event.get("type")
+        payload = event.get("payload") or {}
+
+        # Internal engine events are not part of the public protocol.
+        ignored_events = {
+            "ENGINE_STARTED",
+            "ENGINE_PAUSED",
+            "ENGINE_RESUMED",
+            "ENGINE_RESET"
+        }
+
+        if event_type in ignored_events:
+            return None
+
+        if event_type == "ENGINE_START_FAILED":
+            event_type = "ERROR"
+            payload = {
+                "code": "ENGINE_START_FAILED",
+                "message": payload.get(
+                    "message", "Simulation engine failed to start"
+                ),
+                "recoverable": True,
+                "details": {}
+            }
+
+        elif event_type == "ENGINE_STOPPED":
+            event_type = "SIMULATION_STOPPED"
+            payload = {"reason": "user_request"}
+
+        elif event_type == "CPU_STATE_UPDATED":
+            if "cpu_state" not in payload:
+                payload = {"cpu_state": payload}
+
+        elif event_type == "GPIO_CHANGED":
+            pin_name = str(payload.get("pin", "")).upper()
+            match = re.fullmatch(r"P([0-4])\.(\d{1,2})", pin_name)
+
+            if not match:
+                return None
+
+            level = payload.get("value")
+
+            if level not in (0, 1, False, True):
+                return None
+
+            payload = {
+                "port": int(match.group(1)),
+                "pin": int(match.group(2)),
+                "direction": "input",
+                "level": int(level),
+                "source": "user"
+            }
+
+            if payload["pin"] > 31:
+                return None
+
+        allowed_events = {
+            "SESSION_STATE_CHANGED",
+            "FIRMWARE_LOADED",
+            "CPU_STATE_UPDATED",
+            "GPIO_CHANGED",
+            "LOG",
+            "ERROR",
+            "SIMULATION_STOPPED"
+        }
+
+        if event_type not in allowed_events:
+            return None
+
+        normalized = event.copy()
+        normalized["type"] = event_type
+        normalized["session_id"] = session_id
+        normalized["payload"] = payload
+
+        return normalized
 
     async def load_firmware(self, session_id, firmware_path):
         runtime = self.get_runtime(session_id)
