@@ -121,18 +121,34 @@ class QemuProcessManager:
         if stream is None:
             return
 
-        while True:
-            line = await stream.readline()
+        max_line_bytes = 64 * 1024
+        buffer = bytearray()
 
-            if not line:
+        while True:
+            chunk = await stream.read(4096)
+
+            if not chunk:
+                if buffer:
+                    destination.append(
+                        buffer.decode("utf-8", errors="replace")
+                    )
+                    if len(destination) > self.max_output_lines:
+                        del destination[0]
                 break
 
-            destination.append(
-                line.decode("utf-8", errors="replace").rstrip("\r\n")
-            )
+            for byte in chunk:
+                if byte == 10:  # newline
+                    destination.append(
+                        buffer.decode("utf-8", errors="replace").rstrip("\r")
+                    )
+                    buffer.clear()
 
-            if len(destination) > self.max_output_lines:
-                del destination[0]
+                    if len(destination) > self.max_output_lines:
+                        del destination[0]
+
+                else:
+                    if len(buffer) < max_line_bytes:
+                        buffer.append(byte)
 
     async def _wait_for_process(self, record: ProcessRecord) -> None:
         record.return_code = await record.process.wait()

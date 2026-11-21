@@ -30,8 +30,8 @@ def get_session(session_id: str):
 
 
 @router.delete("/sessions/{session_id}", status_code=204)
-def delete_session(session_id: str):
-    deleted = simulation_service.delete_session(session_id)
+async def delete_session(session_id: str):
+    deleted = await simulation_service.delete_session(session_id)
 
     if not deleted:
         raise HTTPException(

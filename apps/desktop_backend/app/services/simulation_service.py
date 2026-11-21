@@ -1,5 +1,6 @@
 import re
 from pathlib import Path
+from app.processes.qemu_process_manager import QemuProcessManager
 from app.adapters.fake_engine_adapter import FakeEngineAdapter
 from app.adapters.fake_hardware_adapter import FakeHardwareAdapter
 from app.services.event_manager import EventManager
@@ -12,6 +13,7 @@ class SimulationService:
     def __init__(self):
         self.session_manager = SessionManager()
         self.runtimes = {}
+        self.qemu_process_manager = QemuProcessManager()
 
     def create_session(self, config=None):
         config = config or {}
@@ -81,9 +83,14 @@ class SimulationService:
     def list_protocol_sessions(self):
         return self.session_manager.list_protocol_sessions()
 
-    def delete_session(self, session_id):
+    async def delete_session(self, session_id):
         if self.session_manager.get_session(session_id) is None:
             return False
+
+        process_status = self.qemu_process_manager.get_status(session_id)
+
+        if process_status is not None and process_status["running"]:
+            await self.qemu_process_manager.stop(session_id)
 
         self.runtimes.pop(session_id, None)
 

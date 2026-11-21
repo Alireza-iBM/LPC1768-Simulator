@@ -135,6 +135,25 @@ class TestQemuProcessManager(unittest.IsolatedAsyncioTestCase):
         finally:
             await self.manager.stop("test-concurrent", timeout=2)
 
+    async def test_very_long_output_line_is_bounded(self):
+        result = await self.manager.start(
+            session_id="test-long-line",
+            executable=sys.executable,
+            args=[
+                "-c",
+                "print('A' * 200000); print('marker')",
+            ],
+        )
+
+        self.assertTrue(result["success"])
+
+        status = await self.wait_until_finished("test-long-line")
+
+        self.assertEqual(status["return_code"], 0)
+        self.assertEqual(len(status["stdout"]), 2)
+        self.assertEqual(len(status["stdout"][0]), 64 * 1024)
+        self.assertEqual(status["stdout"][1], "marker")
+
 
 if __name__ == "__main__":
     unittest.main()

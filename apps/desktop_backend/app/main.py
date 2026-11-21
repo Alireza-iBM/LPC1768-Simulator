@@ -1,16 +1,25 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
-
+from contextlib import asynccontextmanager
+from app.api.simulation import simulation_service
 from app.api.sessions import router as sessions_router
 from app.api.simulation import router as simulation_router
 from app.websocket.websocket_router import router as websocket_router
 
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    yield
+
+    await simulation_service.qemu_process_manager.stop_all()
+
+
 app = FastAPI(
     title="LPC1768 Simulator Backend",
     description="Desktop Backend for LPC1768 Simulator",
-    version="0.1.0"
+    version="0.1.0",
+    lifespan=lifespan
 )
 
 
