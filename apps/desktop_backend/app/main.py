@@ -1,20 +1,70 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse
-
+from fastapi.exceptions import RequestValidationError
+from contextlib import asynccontextmanager
+from app.api.simulation import simulation_service
 from app.api.sessions import router as sessions_router
 from app.api.simulation import router as simulation_router
 from app.websocket.websocket_router import router as websocket_router
 
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    yield
+
+    await simulation_service.qemu_process_manager.stop_all()
+
+
 app = FastAPI(
     title="LPC1768 Simulator Backend",
     description="Desktop Backend for LPC1768 Simulator",
-    version="0.1.0"
+    version="0.1.0",
+    lifespan=lifespan
 )
 
 
 # Backend availability state
 app.state.backend_available = True
+
+
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request, exc):
+    detail = exc.detail
+
+    if isinstance(detail, dict):
+        error = detail
+    else:
+        error = {
+            "code": {
+                404: "NOT_FOUND",
+                400: "BAD_REQUEST",
+                409: "CONFLICT",
+                503: "SERVICE_UNAVAILABLE"
+            }.get(exc.status_code, "HTTP_ERROR"),
+            "message": str(detail),
+            "recoverable": exc.status_code >= 500,
+            "details": {}
+        }
+
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"error": error}
+    )
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request, exc):
+    return JSONResponse(
+        status_code=422,
+        content={
+            "error": {
+                "code": "VALIDATION_ERROR",
+                "message": "The request data is invalid.",
+                "recoverable": False,
+                "details": {}
+            }
+        }
+    )
 
 
 @app.middleware("http")
@@ -29,9 +79,12 @@ async def backend_availability_middleware(request, call_next):
         return JSONResponse(
             status_code=503,
             content={
-                "success": False,
-                "error": "BACKEND_UNAVAILABLE",
-                "message": "Backend is temporarily unavailable"
+                "error": {
+                    "code": "BACKEND_UNAVAILABLE",
+                    "message": "Backend is temporarily unavailable.",
+                    "recoverable": True,
+                    "details": {}
+                }
             }
         )
 
