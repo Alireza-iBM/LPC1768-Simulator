@@ -1,5 +1,6 @@
 import re
 from pathlib import Path
+from datetime import datetime, timezone
 
 from app.engine.engine_interface import EngineInterface
 from app.services.event_manager import EventManager
@@ -48,11 +49,16 @@ class FakeEngineAdapter(EngineInterface):
                 "message": "Invalid firmware"
             }
 
-        if (
-            path.suffix.lower() !=
-            SAMPLE_FIRMWARE["format"].lower().replace(".", "")
-            and path.suffix.lower() != ".bin"
-        ):
+        expected_format = str(
+            SAMPLE_FIRMWARE["format"]
+        ).lower()
+
+        if not expected_format.startswith("."):
+            expected_format = "." + expected_format
+
+        valid_formats = {expected_format}
+
+        if path.suffix.lower() not in valid_formats:
             return {
                 "success": False,
                 "message": "Invalid firmware format"
@@ -63,7 +69,7 @@ class FakeEngineAdapter(EngineInterface):
         return {
             "success": True,
             "message": "Firmware loaded successfully",
-            "firmware": self.loaded_firmware
+            "firmware": Path(self.loaded_firmware).name
         }
 
     def start(self):
@@ -183,12 +189,30 @@ class FakeEngineAdapter(EngineInterface):
         }
 
     def get_cpu_state(self):
+        register_names = [
+            "r0", "r1", "r2", "r3", "r4", "r5",
+            "r6", "r7", "r8", "r9", "r10", "r11",
+            "r12", "sp", "lr", "pc", "xpsr"
+        ]
+
+        registers = {}
+
+        for name in register_names:
+            value = MOCK_CPU_STATE.get(name.upper())
+
+            if value is None:
+                registers[name] = None
+            elif isinstance(value, str):
+                registers[name] = int(value, 16)
+            else:
+                registers[name] = value
 
         return {
-            "running": self.running,
-            "paused": self.paused,
-            "firmware": self.loaded_firmware,
-            "registers": MOCK_CPU_STATE.copy()
+            "available": True,
+            "source": "mock",
+            "halted": not self.running or self.paused,
+            "updated_at": datetime.now(timezone.utc).isoformat(),
+            "registers": registers
         }
 
     def get_hardware_state(self):
