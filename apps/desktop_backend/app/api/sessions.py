@@ -1,4 +1,5 @@
-from fastapi import APIRouter, HTTPException
+
+from fastapi import APIRouter, HTTPException, Response
 from app.api.simulation import simulation_service
 
 router = APIRouter()
@@ -6,17 +7,18 @@ router = APIRouter()
 
 @router.post("/sessions")
 def create_session(config: dict = None):
-    return simulation_service.create_session(config)
+    session = simulation_service.create_session(config)
+    return simulation_service.session_manager.to_protocol_session(session)
 
 
 @router.get("/sessions")
 def list_sessions():
-    return simulation_service.list_sessions()
+    return simulation_service.list_protocol_sessions()
 
 
 @router.get("/sessions/{session_id}")
 def get_session(session_id: str):
-    session = simulation_service.get_session(session_id)
+    session = simulation_service.get_protocol_session(session_id)
 
     if session is None:
         raise HTTPException(
@@ -27,9 +29,9 @@ def get_session(session_id: str):
     return session
 
 
-@router.delete("/sessions/{session_id}")
-def delete_session(session_id: str):
-    deleted = simulation_service.delete_session(session_id)
+@router.delete("/sessions/{session_id}", status_code=204)
+async def delete_session(session_id: str):
+    deleted = await simulation_service.delete_session(session_id)
 
     if not deleted:
         raise HTTPException(
@@ -37,9 +39,7 @@ def delete_session(session_id: str):
             detail="Session not found"
         )
 
-    return {
-        "message": "Session deleted successfully"
-    }
+    return Response(status_code=204)
 
 
 @router.get("/sessions/{session_id}/events")
