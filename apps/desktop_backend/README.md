@@ -242,3 +242,21 @@ Planned improvements include:
 **Component:** M3 – Desktop Backend / Simulation Controller
 **Framework:** FastAPI
 **Language:** Python
+
+
+## QEMU process lifecycle foundation
+
+The backend now includes a QemuProcessManager module for managing one external QEMU process per simulation session. It provides asynchronous process startup, bounded stdout/stderr capture, status reporting, termination/kill handling and shutdown cleanup.
+
+This is process lifecycle infrastructure only. The current SimulationService still uses FakeEngineAdapter unless/until a real QEMU EngineAdapter is implemented and explicitly configured. Do not interpret the process manager's presence as proof that LPC1768 firmware is already executed through the API.
+
+### Backend tests
+
+From this directory:
+
+~~~bash
+python -m pip install -r requirements-dev.txt
+python -m pytest -q
+~~~
+
+Run the full test suite before merging backend changes. Record actual results in the PR handoff.
