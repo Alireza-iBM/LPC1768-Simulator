@@ -1,3 +1,6 @@
+import re
+from pathlib import Path
+from app.processes.qemu_process_manager import QemuProcessManager
 from app.adapters.fake_engine_adapter import FakeEngineAdapter
 from app.adapters.fake_hardware_adapter import FakeHardwareAdapter
 from app.services.event_manager import EventManager
@@ -10,6 +13,7 @@ class SimulationService:
     def __init__(self):
         self.session_manager = SessionManager()
         self.runtimes = {}
+        self.qemu_process_manager = QemuProcessManager()
 
     def create_session(self, config=None):
         config = config or {}
@@ -44,12 +48,49 @@ class SimulationService:
     def get_session(self, session_id):
         return self.session_manager.get_session(session_id)
 
+    def get_protocol_session(self, session_id):
+        session = self.session_manager.get_session(session_id)
+        return self.session_manager.to_protocol_session(session)
+
+    def _update_session_status(self, session_id, status):
+        session = self.session_manager.get_session(session_id)
+
+        if session is None:
+            return False
+
+        if session["status"] == status:
+            return True
+
+        updated = self.session_manager.update_status(session_id, status)
+
+        if not updated:
+            return False
+
+        runtime = self.get_runtime(session_id)
+
+        if runtime is not None:
+            runtime["event_manager"].emit(
+                "SESSION_STATE_CHANGED",
+                session_id=session_id,
+                payload={"status": status}
+            )
+
+        return True
+
     def list_sessions(self):
         return self.session_manager.list_sessions()
 
-    def delete_session(self, session_id):
+    def list_protocol_sessions(self):
+        return self.session_manager.list_protocol_sessions()
+
+    async def delete_session(self, session_id):
         if self.session_manager.get_session(session_id) is None:
             return False
+
+        process_status = self.qemu_process_manager.get_status(session_id)
+
+        if process_status is not None and process_status["running"]:
+            await self.qemu_process_manager.stop(session_id)
 
         self.runtimes.pop(session_id, None)
 
@@ -77,15 +118,98 @@ class SimulationService:
         events = event_manager.get_events()
 
         for event in events:
-            event["session_id"] = session_id
+            normalized = self._normalize_event(event, session_id)
 
-            self.session_manager.add_event(session_id, event)
+            if normalized is None:
+                continue
 
-            await websocket_manager.broadcast(session_id, event)
+            self.session_manager.add_event(session_id, normalized)
+
+            await websocket_manager.broadcast(
+                session_id,
+                normalized
+            )
 
         event_manager.clear_events()
 
-    async def load_firmware(self, session_id, firmware_path):
+    def _normalize_event(self, event, session_id):
+        event_type = event.get("type")
+        payload = event.get("payload") or {}
+
+        # Internal engine events are not part of the public protocol.
+        ignored_events = {
+            "ENGINE_STARTED",
+            "ENGINE_PAUSED",
+            "ENGINE_RESUMED",
+            "ENGINE_RESET"
+        }
+
+        if event_type in ignored_events:
+            return None
+
+        if event_type == "ENGINE_START_FAILED":
+            event_type = "ERROR"
+            payload = {
+                "code": "ENGINE_START_FAILED",
+                "message": payload.get(
+                    "message", "Simulation engine failed to start"
+                ),
+                "recoverable": True,
+                "details": {}
+            }
+
+        elif event_type == "ENGINE_STOPPED":
+            event_type = "SIMULATION_STOPPED"
+            payload = {"reason": "user_request"}
+
+        elif event_type == "CPU_STATE_UPDATED":
+            if "cpu_state" not in payload:
+                payload = {"cpu_state": payload}
+
+        elif event_type == "GPIO_CHANGED":
+            pin_name = str(payload.get("pin", "")).upper()
+            match = re.fullmatch(r"P([0-4])\.(\d{1,2})", pin_name)
+
+            if not match:
+                return None
+
+            level = payload.get("value")
+
+            if level not in (0, 1, False, True):
+                return None
+
+            payload = {
+                "port": int(match.group(1)),
+                "pin": int(match.group(2)),
+                "direction": "input",
+                "level": int(level),
+                "source": "user"
+            }
+
+            if payload["pin"] > 31:
+                return None
+
+        allowed_events = {
+            "SESSION_STATE_CHANGED",
+            "FIRMWARE_LOADED",
+            "CPU_STATE_UPDATED",
+            "GPIO_CHANGED",
+            "LOG",
+            "ERROR",
+            "SIMULATION_STOPPED"
+        }
+
+        if event_type not in allowed_events:
+            return None
+
+        normalized = event.copy()
+        normalized["type"] = event_type
+        normalized["session_id"] = session_id
+        normalized["payload"] = payload
+
+        return normalized
+
+    async def load_firmware(self, session_id, firmware_path, filename=None):
         runtime = self.get_runtime(session_id)
 
         if runtime is None:
@@ -95,6 +219,28 @@ class SimulationService:
             }
 
         result = runtime["engine"].load_firmware(firmware_path)
+
+        if result.get("success"):
+            self._update_session_status(session_id, "ready")
+
+            firmware_info = {
+                "filename": filename or Path(firmware_path).name,
+                "format": "elf",
+                "architecture": "ARMv7-M",
+                "load_status": "loaded"
+            }
+            self.session_manager.update_firmware(
+                session_id,
+                firmware_info
+            )
+
+            runtime["event_manager"].emit(
+                "FIRMWARE_LOADED",
+                session_id=session_id,
+                payload={
+                    "firmware": firmware_info
+                }
+            )
 
         await self._sync_events(session_id)
 
@@ -126,6 +272,11 @@ class SimulationService:
 
         engine_result = runtime["engine"].start()
 
+        new_status = (
+            "running" if engine_result.get("success") else "error"
+        )
+        self._update_session_status(session_id, new_status)
+
         await self._sync_events(session_id)
 
         return {
@@ -144,6 +295,9 @@ class SimulationService:
 
         result = runtime["engine"].pause()
 
+        if result.get("success"):
+            self._update_session_status(session_id, "paused")
+
         await self._sync_events(session_id)
 
         return result
@@ -158,6 +312,9 @@ class SimulationService:
             }
 
         result = runtime["engine"].resume()
+
+        if result.get("success"):
+            self._update_session_status(session_id, "running")
 
         await self._sync_events(session_id)
 
@@ -174,6 +331,14 @@ class SimulationService:
 
         result = runtime["engine"].reset()
 
+        if result.get("success"):
+            new_status = (
+                "ready"
+                if runtime["engine"].loaded_firmware
+                else "created"
+            )
+            self._update_session_status(session_id, new_status)
+
         await self._sync_events(session_id)
 
         return result
@@ -188,6 +353,9 @@ class SimulationService:
             }
 
         engine_result = runtime["engine"].stop()
+
+        if engine_result.get("success"):
+            self._update_session_status(session_id, "stopped")
 
         await self._sync_events(session_id)
 
