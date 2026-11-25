@@ -5,9 +5,9 @@ These fixtures are used by the Fake Engine and backend tests.
 """
 
 SAMPLE_FIRMWARE = {
-    "name": "sample_firmware.bin",
-    "path": "sample_firmware.bin",
-    "format": "bin",
+    "name": "sample_firmware.elf",
+    "path": "sample_firmware.elf",
+    "format": "elf",
     "valid": True
 }
 
